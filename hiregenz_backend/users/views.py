@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from django.conf import settings
 from .models import Recruiter, Candidate, CandidatePreference
 from .serializers import RecruiterSerializer, CandidateSerializer
@@ -39,7 +41,7 @@ class ResumeUploadView(APIView):
                 candidate.otp = otp
                 candidate.is_verified = False
                 candidate.save()
-                self.send_otp_email(candidate.email, otp)
+                self.send_otp_email(candidate.email, otp, candidate.name)
 
                 return Response(
                     {"message": f"{message} OTP sent to {candidate.email} for verification."},
@@ -104,12 +106,21 @@ class ResumeUploadView(APIView):
         """Generate a 6-digit OTP."""
         return ''.join(random.choices(string.digits, k=6))
 
-    def send_otp_email(self, email, otp):
-        """Send an OTP email to the candidate."""
+    def send_otp_email(self, email, otp, name):
+        """Send an OTP email to the candidate with an HTML template."""
         subject = "Verify Your Email - HireGenZ"
-        message = f"Your OTP for email verification is: {otp}. Please verify to complete your registration."
+        from_email = settings.DEFAULT_FROM_EMAIL
+        to_email = [email]
+
+        # Render the HTML template with context
+        html_content = render_to_string('verification_email.html', {'name': name, 'otp': otp})
+
+        # Create the email
+        email_message = EmailMultiAlternatives(subject, "", from_email, to_email)
+        email_message.attach_alternative(html_content, "text/html")
+
         try:
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+            email_message.send()
         except Exception as e:
             print(f"Error sending OTP email: {e}")
 
