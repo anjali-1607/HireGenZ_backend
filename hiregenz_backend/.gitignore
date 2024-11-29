@@ -1,0 +1,115 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# SQLite database files
+db.sqlite3
+*.sqlite3-journal
+
+# Django specific
+*.pot
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env  # If you're using a .env file for sensitive information
+
+# Django cache
+*.log
+
+# Local settings
+settings_local.py  # If you have local settings separate from production
+
+# Logs
+*.log
+log/
+logs/
+*.log.*
+*.out
+*.err
+
+# Static files
+/staticfiles/
+/media/
+
+# Virtual environment
+venv/
+env/
+
+# IDE-specific files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Node modules
+node_modules/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints
+
+# Generated migration files
+migrations/
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# Coverage reports
+htmlcov/
+*.cover
+.coverage
+*.py,cover
+.tox
+.cache
+
+# Unit test / coverage reports
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Build directories
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Sphinx documentation
+docs/_build/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Celery task results
+celerybeat-schedule
+
+# Gunicorn PID file
+gunicorn.pid
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy cache
+.mypy_cache/
+
+# Pipenv
+Pipfile.lock
+
+# JetBrains IDEs (PyCharm)
+.idea/
+
+# Miscellaneous
+*.swp
