@@ -25,4 +25,31 @@ class Candidate(models.Model):
 
     def __str__(self):
         return self.name or "Unnamed Candidate"
+    
+
+class CandidatePreference(models.Model):
+    EMPLOYMENT_TYPE_CHOICES = [
+        ('FULL_TIME', 'Full Time'),
+        ('PART_TIME', 'Part Time'),
+        ('FREELANCE', 'Freelance'),
+        ('INTERNSHIP', 'Internship'),
+        ('CONTRACT', 'Contract'),
+    ]
+
+    JOB_TYPE_CHOICES = [
+        ('REMOTE', 'Remote'),
+        ('HYBRID', 'Hybrid'),
+        ('WFO', 'WFO'),
+        
+    ]
+
+    candidate = models.OneToOneField(Candidate, on_delete=models.CASCADE, related_name='preference')
+    expected_salary_min = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    expected_salary_max = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    preferred_locations = models.JSONField(max_length=255,blank=True, null=True, default=list)  # List of preferred locations
+    job_type = models.CharField(max_length=50, choices=JOB_TYPE_CHOICES, null=True, blank=True)
+    employment_type = models.CharField(max_length=50, choices=EMPLOYMENT_TYPE_CHOICES, null=True, blank=True)  # Full-time, Part-time
+
+    def __str__(self):
+        return f"Preferences for {self.candidate.name or 'Unnamed Candidate'}"
 

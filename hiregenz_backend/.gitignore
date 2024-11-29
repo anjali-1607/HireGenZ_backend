@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# SQLite database files
+db.sqlite3
+*.sqlite3-journal
 
 # Django specific
 *.pot
