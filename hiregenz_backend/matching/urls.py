@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import MatchingView
+from .views import GetMatchedCandidatesView
 
 urlpatterns = [
-    path('match/<int:job_id>/', MatchingView.as_view(), name='match-candidates'),
+    path('match/<int:job_id>/', GetMatchedCandidatesView.as_view(), name='get-matched-candidates'),
 ]

@@ -10,7 +10,7 @@ class JobPost(models.Model):
     max_ctc = models.PositiveIntegerField()
     location = models.CharField(max_length=255)
     education = models.CharField(max_length=255)
-    key_skills = models.JSONField()
+    key_skills = models.JSONField()  # List of skills required
     job_type = models.CharField(max_length=50)  # WFH, Hybrid, etc.
     employment_type = models.CharField(max_length=50)  # Full-time, Part-time
     industry_type = models.CharField(max_length=100)
