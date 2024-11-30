@@ -1,6 +1,8 @@
 import openai
+from django.conf import settings
 
-openai.api_key = "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"
+# Use the API key from settings
+openai.api_key = settings.OPENAI_API_KEY
 
 def generate_mcqs(job_description):
     prompt = f"""
