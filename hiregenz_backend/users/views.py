@@ -12,8 +12,9 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from .models import Recruiter, Candidate, CandidatePreference
-from .serializers import RecruiterSerializer, OTPVerificationSerializer
+from .serializers import RecruiterSerializer, OTPVerificationSerializer, RecruiterOTPLoginSerializer
 from .utils import extract_resume_data  # Utility for parsing resumes
+from rest_framework.authtoken.models import Token
 
 class ResumeUploadView(APIView):
     """Handles the uploading and parsing of resumes, sending OTP for email verification."""
@@ -226,105 +227,63 @@ class OTPVerificationView(APIView):
             recruiter.save()
             return Response({"message": "Email verified successfully."}, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+    
 
-# class CandidateView(APIView):
-#     """Handles candidate creation with or without resume upload."""
 
-#     def post(self, request):
-#         print("Runned!")
-#         try:
-#             # Check for resume upload
-#             if request.FILES.get("resume"):
-#                 resume_file = self.get_uploaded_file(request)
-#                 resume_text = self.extract_resume_text(resume_file)
+class SendOTPForLoginView(APIView):
+    """
+    API to send OTP for recruiter login.
+    """
 
-#                 # Extract structured data from the resume
-#                 extracted_data = extract_resume_data(resume_text)
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Email is required."}, status=HTTP_400_BAD_REQUEST)
 
-#                 # Create or update candidate
-#                 candidate, message = self.create_or_update_candidate(extracted_data, resume_file, resume_text)
+        try:
+            recruiter = Recruiter.objects.get(email=email)
+        except Recruiter.DoesNotExist:
+            return Response({"error": "Recruiter not found."}, status=HTTP_400_BAD_REQUEST)
 
-#                 print("Candidate, Message",candidate, message)
+        if not recruiter.is_verified:
+            return Response({"error": "Email is not verified."}, status=HTTP_400_BAD_REQUEST)
 
-#                 # Send email notification
-#                 if candidate.email:
-#                     self.send_email(candidate.email, candidate.name, is_new=not candidate.is_verified)
-#                 else:
-#                     print("No valid email address provided for the candidate.")
-                
+        # Generate and send OTP
+        recruiter.generate_otp()
+        send_mail(
+            subject="Your OTP for Login",
+            message=f"Your OTP for login is {recruiter.otp}. It is valid for 10 minutes.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+        )
 
-#                 return Response(
-#                     {"message": message, "data": CandidateSerializer(candidate).data},
-#                     status=status.HTTP_201_CREATED,
-#                 )
+        return Response({"message": "OTP sent to your email."}, status=HTTP_200_OK)
 
-#             # Handle direct data creation
-#             else:
-#                 print("Running")
-#                 serializer = CandidateSerializer(data=request.data)
-#                 if serializer.is_valid():
-#                     serializer.save()
-#                     return Response(serializer.data, status=status.HTTP_201_CREATED)
-#                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class RecruiterOTPLoginView(APIView):
+    """
+    API to log in recruiters using email and OTP with JWT tokens.
+    """
 
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def post(self, request, *args, **kwargs):
+        serializer = RecruiterOTPLoginSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            recruiter = serializer.validated_data
 
-#     def get_uploaded_file(self, request):
-#         """Fetch the uploaded resume file."""
-#         if not request.FILES.get("resume"):
-#             raise ValueError("No resume file provided.")
-#         return request.FILES["resume"]
+            # Generate JWT tokens
+            tokens = serializer.get_tokens_for_recruiter(recruiter)
 
-#     def extract_resume_text(self, resume_file):
-#         """Extract text from the uploaded resume file."""
-#         temp_file = NamedTemporaryFile(delete=False)
-#         temp_file.write(resume_file.read())
-#         temp_file.flush()
-#         resume_text = extract_text(temp_file.name)
-#         temp_file.close()
-#         os.unlink(temp_file.name)
-#         return resume_text
+            # Clear OTP after successful login
+            recruiter.otp = None
+            recruiter.otp_expiration = None
+            recruiter.save()
 
-#     def create_or_update_candidate(self, extracted_data, resume_file, resume_text):
-#         """Create or update a candidate record."""
-#         email = extracted_data.get("email")
-#         candidate = Candidate.objects.filter(email=email).first()
+            return Response(
+                {
+                    "message": "Login successful.",
+                    "tokens": tokens,
+                    "recruiter_id": recruiter.id,
+                },
+                status=HTTP_200_OK,
+            )
 
-#         if candidate:
-#             for field, value in extracted_data.items():
-#                 setattr(candidate, field, value)
-#             candidate.resume_file = resume_file
-#             candidate.save()
-#             return candidate, "Candidate details updated successfully!"
-#         else:
-#             candidate = Candidate.objects.create(
-#                 name=extracted_data["name"],
-#                 email=email,
-#                 phone=extracted_data["phone"],
-#                 skills=", ".join(extracted_data["skills"]),
-#                 certifications=extracted_data["certifications"],
-#                 education=extracted_data["education"],
-#                 work_experience=extracted_data["work_experience"],
-#                 professional_summary=extracted_data["professional_summary"],
-#                 resume_text=resume_text,
-#                 resume_file=resume_file,
-#             )
-#             return candidate, "Candidate created successfully!"
-
-#     def send_email(self, email, name, is_new=True):
-#         """Send welcome or update notification email."""
-#         subject = "Welcome to HireGenZ!" if is_new else "Your Profile Was Updated"
-#         message = (
-#             f"Hi {name},\n\n"
-#             "Thank you for uploading your resume. We have successfully created your profile!"
-#             if is_new
-#             else f"Hi {name},\n\nYour profile has been successfully updated with your new resume."
-#         )
-#         try:
-#             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
-#         except BadHeaderError:
-#             raise ValueError("Invalid header found.")
-#         except Exception as e:
-#             print(f"Error sending email: {e}")
-#             raise
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)

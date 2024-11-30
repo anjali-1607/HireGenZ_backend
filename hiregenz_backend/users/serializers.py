@@ -1,3 +1,4 @@
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
 from .models import Recruiter, Candidate
 from django.utils.timezone import now
@@ -67,6 +68,35 @@ class OTPVerificationSerializer(serializers.Serializer):
         if recruiter.otp != otp or recruiter.otp_expiration < now():
             raise serializers.ValidationError("Invalid or expired OTP.")
         return recruiter
+    
+class RecruiterOTPLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate(self, data):
+        email = data.get('email')
+        otp = data.get('otp')
+
+        try:
+            recruiter = Recruiter.objects.get(email=email)
+        except Recruiter.DoesNotExist:
+            raise serializers.ValidationError("Recruiter not found.")
+
+        # Check if OTP matches and is not expired
+        if recruiter.otp != otp or recruiter.otp_expiration < now():
+            raise serializers.ValidationError("Invalid or expired OTP.")
+
+        return recruiter
+
+    def get_tokens_for_recruiter(self, recruiter):
+        """
+        Generate JWT tokens for the recruiter.
+        """
+        refresh = RefreshToken.for_user(recruiter)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
 
 class CandidateSerializer(serializers.ModelSerializer):
     class Meta:
