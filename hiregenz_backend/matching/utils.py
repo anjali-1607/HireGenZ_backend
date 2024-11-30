@@ -8,14 +8,24 @@ model = SentenceTransformer('bert-base-nli-mean-tokens')
 def preprocess_text(text):
     return text.lower().strip()
 
-# Calculate semantic similarity
-def calculate_similarity(list1, list2):
+def calculate_similarity(list1, list2, model):
     if not list1 or not list2:
-        return 0  # No match if either list is empty
+        return 0  # No similarity if either list is empty
+
+    # Generate embeddings for both lists
     embeddings1 = model.encode(list1, convert_to_tensor=True)
     embeddings2 = model.encode(list2, convert_to_tensor=True)
+
+    # Compute cosine similarities
     similarities = util.cos_sim(embeddings1, embeddings2)
-    return np.mean(similarities).item()  # Return average similarity score
+
+    # Handle edge cases for empty similarity
+    if similarities.numel() == 0:  # Check if tensor is empty
+        return 0
+
+    # Calculate the average similarity score
+    return np.mean(similarities.cpu().numpy())
+
 
 # Match salary ranges
 def match_salary(expected_min, expected_max, offered_min, offered_max):
