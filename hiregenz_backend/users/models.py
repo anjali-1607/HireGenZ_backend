@@ -1,13 +1,24 @@
 from django.db import models
+from django.utils.timezone import now, timedelta
+
 
 class Recruiter(models.Model):
+    name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     company_name = models.CharField(max_length=255)
     website_url = models.URLField()
     is_verified = models.BooleanField(default=False)
+    otp = models.CharField(max_length=6, null=True, blank=True)
+    otp_expiration = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.company_name
+
+    def generate_otp(self):
+        from random import randint
+        self.otp = f"{randint(100000, 999999)}"  # Generate a 6-digit OTP
+        self.otp_expiration = now() + timedelta(minutes=10)  # OTP valid for 10 minutes
+        self.save()
 
 class Candidate(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)

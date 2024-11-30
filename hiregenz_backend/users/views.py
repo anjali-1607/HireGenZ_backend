@@ -5,13 +5,14 @@ from tempfile import NamedTemporaryFile
 from pdfminer.high_level import extract_text
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from django.core.mail import send_mail
+from rest_framework import status
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from .models import Recruiter, Candidate, CandidatePreference
-from .serializers import RecruiterSerializer, CandidateSerializer
+from .serializers import RecruiterSerializer, OTPVerificationSerializer
 from .utils import extract_resume_data  # Utility for parsing resumes
 
 class ResumeUploadView(APIView):
@@ -191,16 +192,40 @@ class VerifyEmailView(APIView):
                 "employment_type": employment_type,
             },
         )
-class RecruiterView(APIView):
-    """Handles recruiter creation."""
-
-    def post(self, request):
+class RecruiterRegistrationView(APIView):
+    """
+    API for registering recruiters and sending OTPs.
+    """
+    def post(self, request, *args, **kwargs):
         serializer = RecruiterSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            recruiter = serializer.save()
+            recruiter.generate_otp()  # Generate OTP
+            # Send OTP to the recruiter's email
+            send_mail(
+                subject="Verify Your Email",
+                message=f"Your OTP is {recruiter.otp}. It is valid for 10 minutes.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[recruiter.email],
+            )
+            return Response({"message": "Recruiter registered successfully. OTP sent to email."}, status=HTTP_200_OK)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
+
+class OTPVerificationView(APIView):
+    """
+    API for verifying OTP and activating the recruiter account.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = OTPVerificationSerializer(data=request.data)
+        if serializer.is_valid():
+            recruiter = serializer.validated_data
+            recruiter.is_verified = True
+            recruiter.otp = None  # Clear OTP after successful verification
+            recruiter.otp_expiration = None
+            recruiter.save()
+            return Response({"message": "Email verified successfully."}, status=HTTP_200_OK)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
 # class CandidateView(APIView):
 #     """Handles candidate creation with or without resume upload."""
