@@ -12,6 +12,7 @@ class Test(models.Model):
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     test_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)  # Unique test token
-
+  
+  
     def __str__(self):
         return f"Test for {self.candidate.name} by {self.recruiter.company_name}"

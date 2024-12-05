@@ -19,24 +19,26 @@ class SendTestLinksToShortlistedView(APIView):
         # Ensure the job exists
         job = get_object_or_404(JobPost, id=job_id)
 
-        # Retrieve shortlisted candidates from the matching API (passed dynamically)
+        # Retrieve shortlisted candidates from the request
         shortlisted_candidates = request.data.get('shortlisted_candidates', [])
 
         if not shortlisted_candidates:
             return Response({"error": "No shortlisted candidates provided."}, status=400)
 
+        # Check if MCQs are already generated for the job
+        if not job.mcqs:  # Assuming you already added an `mcqs` field to JobPost for this purpose
+            job.mcqs = generate_mcqs(job.description)
+            job.save()
+
         for candidate_id in shortlisted_candidates:
             candidate = get_object_or_404(Candidate, id=candidate_id)
 
-            # Generate test questions
-            questions = generate_mcqs(job.description)
-
-            # Save test to the database
+            # Save test to the database using the stored MCQs in the `questions` column
             test = Test.objects.create(
                 candidate=candidate,
                 recruiter=job.recruiter,
                 job_description=job.description,
-                questions=questions
+                questions=job.mcqs,  # Store MCQs in the `questions` column
             )
 
             # Generate test link using the test token
@@ -61,7 +63,8 @@ class SendTestLinksToShortlistedView(APIView):
                 recipient_list=[candidate.email],
             )
 
-        return Response({"message": "Test links sent to shortlisted candidates successfully."}, status=200)
+        return Response({"message": "Tests generated and emails sent successfully."}, status=200)
+    
     
 class RetrieveTestQuestionsView(APIView):
     def get(self, request, test_token, *args, **kwargs):

@@ -18,6 +18,7 @@ class JobPost(models.Model):
     candidates_needed = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    mcqs = models.JSONField(null=True, blank=True)  # Field to store generated MCQs
     
     def __str__(self):
         return self.title

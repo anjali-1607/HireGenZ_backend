@@ -18,7 +18,7 @@ def generate_mcqs(job_description):
     ]
     """
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model="gpt-4o",
         messages=[{"role": "system", "content": prompt}]
     )
     return eval(response['choices'][0]['message']['content'])  # Parse JSON response
