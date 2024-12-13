@@ -6,5 +6,4 @@ urlpatterns = [
     path('<uuid:test_token>/questions/', RetrieveTestQuestionsView.as_view(), name='retrieve_test_questions'),
     path('<uuid:test_token>/submit/', SubmitTestAnswersView.as_view(), name='submit_test_answers'),
     path('rank-students/<int:job_id>/', RankStudentsByJobView.as_view(), name='rank_students_by_job'),
-
 ]
