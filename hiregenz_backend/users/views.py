@@ -46,12 +46,12 @@ class ResumeUploadView(APIView):
                 self.send_otp_email(candidate.email, otp, candidate.name)
 
                 return Response(
-                    {"message": f"{message} OTP sent to {candidate.email} for verification."},
+                    {"message": f"{message} OTP sent to {candidate.email} for verification.","data":{"email":candidate.email,"is_verified":"true"}},
                     status=status.HTTP_201_CREATED,
                 )
 
             return Response(
-                {"message": f"{message} Candidate already verified."},
+                {"message": f"{message} Candidate already verified.","data":{"email":candidate.email,"is_verified":"true"}},
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
