@@ -21,6 +21,141 @@ class ResumeUploadView(APIView):
 
     def post(self, request):
         try:
+            # Validate and retrieve the resume file
+            resume_file = self.get_uploaded_file(request)
+            resume_text = self.extract_resume_text(resume_file)
+
+            # Parse resume data
+            extracted_data = extract_resume_data(resume_text)
+            email = extracted_data.get("email")
+
+            if not email:
+                return Response({"error": "No valid email found in the resume."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Create or update candidate
+            candidate, message, is_new_or_requires_verification = self.create_or_update_candidate(
+                extracted_data, resume_file, resume_text
+            )
+
+            # Check if OTP is required
+            if is_new_or_requires_verification:
+                if not candidate.is_verified:
+                    # Send OTP for email verification
+                    otp = self.generate_otp()
+                    candidate.otp = otp
+                    candidate.is_verified = False
+                    candidate.save()
+                    self.send_otp_email(candidate.email, otp, candidate.name)
+
+                    return Response(
+                        {
+                            "message": f"{message} OTP sent to {candidate.email} for verification.",
+                            "data": {"email": candidate.email, "is_verified": "false"},
+                        },
+                        status=status.HTTP_201_CREATED,
+                    )
+                else:
+                    # Send OTP for preference updates
+                    otp = self.generate_otp()
+                    candidate.otp = otp
+                    candidate.save()
+                    self.send_otp_email(candidate.email, otp, candidate.name)
+
+                    return Response(
+                        {
+                            "message": "OTP sent for updating preferences.",
+                            "data": {"email": candidate.email, "is_verified": "true"},
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+            # No OTP required (email already verified, no preference update needed)
+            return Response(
+                {
+                    "message": f"{message} Candidate already verified and no further action is needed.",
+                    "data": {"email": candidate.email, "is_verified": "true"},
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get_uploaded_file(self, request):
+        """Fetch the uploaded resume file."""
+        resume_file = request.FILES.get("resume")
+        if not resume_file:
+            raise ValueError("No resume file provided.")
+        return resume_file
+
+    def extract_resume_text(self, resume_file):
+        """Extract text from the uploaded resume file."""
+        temp_file = NamedTemporaryFile(delete=False)
+        try:
+            temp_file.write(resume_file.read())
+            temp_file.flush()
+            resume_text = extract_text(temp_file.name)
+        finally:
+            temp_file.close()
+            os.unlink(temp_file.name)
+        return resume_text
+
+    def create_or_update_candidate(self, extracted_data, resume_file, resume_text):
+        """Create or update a candidate record based on extracted resume data."""
+        email = extracted_data.get("email")
+        candidate = Candidate.objects.filter(email=email).first()
+
+        if candidate:
+            if not candidate.is_verified:  # Candidate exists but is not verified
+                for field, value in extracted_data.items():
+                    setattr(candidate, field, value)
+                candidate.resume_file = resume_file
+                candidate.resume_text = resume_text
+                candidate.save()
+                return candidate, "Candidate details updated successfully!", True
+            else:  # Candidate exists, already verified (send OTP for preferences update)
+                return candidate, "Candidate details updated successfully!", True
+        else:
+            # Create a new candidate
+            candidate = Candidate.objects.create(
+                name=extracted_data.get("name"),
+                email=email,
+                phone=extracted_data.get("phone"),
+                skills=", ".join(extracted_data.get("skills", [])),
+                certifications=extracted_data.get("certifications"),
+                education=extracted_data.get("education"),
+                work_experience=extracted_data.get("work_experience"),
+                professional_summary=extracted_data.get("professional_summary"),
+                resume_text=resume_text,
+                resume_file=resume_file,
+            )
+            return candidate, "Candidate created successfully!", True
+
+    def generate_otp(self):
+        """Generate a 6-digit OTP."""
+        return ''.join(random.choices(string.digits, k=6))
+
+    def send_otp_email(self, email, otp, name):
+        """Send an OTP email to the candidate with an HTML template."""
+        subject = "Verify Your Email - HireGenZ"
+        from_email = settings.DEFAULT_FROM_EMAIL
+        to_email = [email]
+
+        # Render the HTML template with context
+        html_content = render_to_string('verification_email.html', {'name': name, 'otp': otp})
+
+        # Create the email
+        email_message = EmailMultiAlternatives(subject, "", from_email, to_email)
+        email_message.attach_alternative(html_content, "text/html")
+
+        try:
+            email_message.send()
+        except Exception as e:
+            print(f"Error sending OTP email: {e}")
+
+    """Handles the uploading and parsing of resumes, sending OTP for email verification or preference updates."""
+
+    def post(self, request):
+        try:
             # Validate resume file
             resume_file = self.get_uploaded_file(request)
             resume_text = self.extract_resume_text(resume_file)
