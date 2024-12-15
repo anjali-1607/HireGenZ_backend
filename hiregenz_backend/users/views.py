@@ -17,7 +17,7 @@ from .utils import extract_resume_data  # Utility for parsing resumes
 from rest_framework.authtoken.models import Token
 
 class ResumeUploadView(APIView):
-    """Handles the uploading and parsing of resumes, sending OTP for email verification."""
+    """Handles the uploading and parsing of resumes, sending OTP for email verification or preference updates."""
 
     def post(self, request):
         try:
@@ -33,45 +33,52 @@ class ResumeUploadView(APIView):
                 return Response({"error": "No valid email found in the resume."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Create or update candidate
-            candidate, message, is_new_or_unverified = self.create_or_update_candidate(
+            candidate, message, is_new_or_requires_verification = self.create_or_update_candidate(
                 extracted_data, resume_file, resume_text
             )
 
-            # Send OTP only if the candidate is new or unverified
-            if is_new_or_unverified:
-                otp = self.generate_otp()
-                candidate.otp = otp
-                candidate.is_verified = False
-                candidate.save()
-                self.send_otp_email(candidate.email, otp, candidate.name)
+            # Check if OTP is required
+            if is_new_or_requires_verification:
+                if not candidate.is_verified:
+                    # Send OTP for email verification
+                    otp = self.generate_otp()
+                    candidate.otp = otp
+                    candidate.is_verified = False
+                    candidate.save()
+                    self.send_otp_email(candidate.email, otp, candidate.name)
 
-                return Response(
-                    {"message": f"{message} OTP sent to {candidate.email} for verification.","data":{"email":candidate.email,"is_verified":"true"}},
-                    status=status.HTTP_201_CREATED,
-                )
+                    return Response(
+                        {
+                            "message": f"{message} OTP sent to {candidate.email} for verification.",
+                            "data": {"email": candidate.email, "is_verified": "false"},
+                        },
+                        status=status.HTTP_201_CREATED,
+                    )
+                else:
+                    # Send OTP for preference updates
+                    otp = self.generate_otp()
+                    candidate.otp = otp
+                    candidate.save()
+                    self.send_otp_email(candidate.email, otp, candidate.name)
 
+                    return Response(
+                        {
+                            "message": "OTP sent for updating preferences.",
+                            "data": {"email": candidate.email, "is_verified": "true"},
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+            # No OTP required (email already verified, no preference update needed)
             return Response(
-                {"message": f"{message} Candidate already verified.","data":{"email":candidate.email,"is_verified":"true"}},
+                {
+                    "message": f"{message} Candidate already verified and no further action is needed.",
+                    "data": {"email": candidate.email, "is_verified": "true"},
+                },
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def get_uploaded_file(self, request):
-        """Fetch the uploaded resume file."""
-        if not request.FILES.get("resume"):
-            raise ValueError("No resume file provided.")
-        return request.FILES["resume"]
-
-    def extract_resume_text(self, resume_file):
-        """Extract text from the uploaded resume file."""
-        temp_file = NamedTemporaryFile(delete=False)
-        temp_file.write(resume_file.read())
-        temp_file.flush()
-        resume_text = extract_text(temp_file.name)
-        temp_file.close()
-        os.unlink(temp_file.name)
-        return resume_text
 
     def create_or_update_candidate(self, extracted_data, resume_file, resume_text):
         """Create or update a candidate record based on extracted resume data."""
@@ -86,8 +93,8 @@ class ResumeUploadView(APIView):
                 candidate.resume_text = resume_text
                 candidate.save()
                 return candidate, "Candidate details updated successfully!", True
-            else:  # Candidate exists and is already verified
-                return candidate, "Candidate details updated successfully!", False
+            else:  # Candidate exists, already verified (send OTP for preferences update)
+                return candidate, "Candidate details updated successfully!", True
         else:
             # Create a new candidate
             candidate = Candidate.objects.create(
@@ -104,28 +111,6 @@ class ResumeUploadView(APIView):
             )
             return candidate, "Candidate created successfully!", True
 
-    def generate_otp(self):
-        """Generate a 6-digit OTP."""
-        return ''.join(random.choices(string.digits, k=6))
-
-    def send_otp_email(self, email, otp, name):
-        """Send an OTP email to the candidate with an HTML template."""
-        subject = "Verify Your Email - HireGenZ"
-        from_email = settings.DEFAULT_FROM_EMAIL
-        to_email = [email]
-
-        # Render the HTML template with context
-        html_content = render_to_string('verification_email.html', {'name': name, 'otp': otp})
-
-        # Create the email
-        email_message = EmailMultiAlternatives(subject, "", from_email, to_email)
-        email_message.attach_alternative(html_content, "text/html")
-
-        try:
-            email_message.send()
-        except Exception as e:
-            print(f"Error sending OTP email: {e}")
-
 class VerifyEmailView(APIView):
     """Handles email verification via OTP and updates candidate preferences."""
 
@@ -137,11 +122,18 @@ class VerifyEmailView(APIView):
         if not email or not otp:
             return Response({"error": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Fetch candidate by email
         candidate = Candidate.objects.filter(email=email).first()
         if not candidate:
             return Response({"error": "Candidate not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if candidate.otp == otp:
+        # Validate OTP
+        if candidate.otp != otp:
+            return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # OTP matches
+        if not candidate.is_verified:
+            # First-time email verification
             candidate.is_verified = True
             candidate.otp = None  # Clear OTP after verification
             candidate.save()
@@ -149,15 +141,28 @@ class VerifyEmailView(APIView):
             # Handle candidate preferences if provided
             self.update_preferences(candidate, preferences_data)
 
-            # Send a welcome email after successful verification
+            # Send a welcome email after successful first-time verification
             self.send_welcome_email(candidate.email, candidate.name)
 
-            return Response({"message": "Email verified successfully and preferences updated."}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Email verified successfully and preferences updated."},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            # Candidate already verified; proceed with updating preferences
+            candidate.otp = None  # Clear OTP after successful update
+            candidate.save()
 
-        return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+            # Handle candidate preferences
+            self.update_preferences(candidate, preferences_data)
+
+            return Response(
+                {"message": "Preferences updated successfully."},
+                status=status.HTTP_200_OK,
+            )
 
     def send_welcome_email(self, email, name):
-        """Send a welcome email after successful verification."""
+        """Send a welcome email after successful first-time verification."""
         subject = "Welcome to HireGenZ!"
         message = (
             f"Hi {name},\n\n"
@@ -193,6 +198,10 @@ class VerifyEmailView(APIView):
                 "employment_type": employment_type,
             },
         )
+
+
+
+
 class RecruiterRegistrationView(APIView):
     """
     API for registering recruiters and sending OTPs.
