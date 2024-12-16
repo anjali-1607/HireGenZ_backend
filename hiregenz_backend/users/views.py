@@ -124,6 +124,7 @@ class ResumeUploadView(APIView):
                 certifications=extracted_data.get("certifications"),
                 education=extracted_data.get("education"),
                 work_experience=extracted_data.get("work_experience"),
+                total_work_experience= extracted_data.get("total_experience"),
                 professional_summary=extracted_data.get("professional_summary"),
                 resume_text=resume_text,
                 resume_file=resume_file,
@@ -239,7 +240,7 @@ class ResumeUploadView(APIView):
                 skills=", ".join(extracted_data.get("skills", [])),
                 certifications=extracted_data.get("certifications"),
                 education=extracted_data.get("education"),
-                work_experience=extracted_data.get("work_experience"),
+                total_work_experience=extracted_data.get("work_experience"),
                 professional_summary=extracted_data.get("professional_summary"),
                 resume_text=resume_text,
                 resume_file=resume_file,
@@ -298,7 +299,7 @@ class VerifyEmailView(APIView):
 
     def send_welcome_email(self, email, name):
         """Send a welcome email after successful first-time verification."""
-        subject = "Welcome to HireGenZ!"
+        subject = "Welcome to HireGenZo!"
         message = (
             f"Hi {name},\n\n"
             "Congratulations! Your email has been successfully verified. "
