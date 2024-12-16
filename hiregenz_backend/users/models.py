@@ -29,6 +29,7 @@ class Candidate(models.Model):
     certifications = models.TextField(null=True, blank=True)
     education = models.TextField(null=True, blank=True)
     work_experience = models.TextField(null=True, blank=True)
+    total_work_experience = models.FloatField(null=True,blank=True,help_text="Total work experience in years, stored as a floating-point value.")
     professional_summary = models.TextField(null=True, blank=True)
     resume_file = models.FileField(upload_to="resumes/", null=True, blank=True)
     otp = models.CharField(max_length=6, null=True, blank=True)  # OTP for verification
@@ -60,6 +61,7 @@ class CandidatePreference(models.Model):
     preferred_locations = models.JSONField(max_length=255,blank=True, null=True, default=list)  # List of preferred locations
     job_type = models.CharField(max_length=50, choices=JOB_TYPE_CHOICES, null=True, blank=True)
     employment_type = models.CharField(max_length=50, choices=EMPLOYMENT_TYPE_CHOICES, null=True, blank=True)  # Full-time, Part-time
+   
 
     def __str__(self):
         return f"Preferences for {self.candidate.name or 'Unnamed Candidate'}"
