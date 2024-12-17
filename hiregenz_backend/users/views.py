@@ -364,13 +364,23 @@ class OTPVerificationView(APIView):
     """
     def post(self, request, *args, **kwargs):
         serializer = OTPVerificationSerializer(data=request.data)
+        
         if serializer.is_valid():
             recruiter = serializer.validated_data
             recruiter.is_verified = True
             recruiter.otp = None  # Clear OTP after successful verification
             recruiter.otp_expiration = None
             recruiter.save()
-            return Response({"message": "Email verified successfully."}, status=HTTP_200_OK)
+
+            # Generate JWT tokens (reuse logic from RecruiterOTPLoginSerializer)
+            tokens = OTPVerificationSerializer.get_tokens_for_recruiter(recruiter=recruiter)
+
+            return Response({
+                "message": "Email verified successfully.",
+                "tokens": tokens,
+                "recruiter_id": recruiter.id
+            }, status=HTTP_200_OK)
+        
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
     
 
@@ -390,10 +400,7 @@ class SendOTPForLoginView(APIView):
         except Recruiter.DoesNotExist:
             return Response({"error": "Recruiter not found."}, status=HTTP_400_BAD_REQUEST)
 
-        if not recruiter.is_verified:
-            return Response({"error": "Email is not verified."}, status=HTTP_400_BAD_REQUEST)
-
-        # Generate and send OTP
+        # **Generate and send OTP, regardless of email verification status**
         recruiter.generate_otp()
         send_mail(
             subject="Your OTP for Login",
@@ -404,15 +411,41 @@ class SendOTPForLoginView(APIView):
 
         return Response({"message": "OTP sent to your email."}, status=HTTP_200_OK)
 
+
 class RecruiterOTPLoginView(APIView):
     """
     API to log in recruiters using email and OTP with JWT tokens.
     """
 
+    def send_welcome_email(self, recruiter):
+        """Send a welcome email to the recruiter."""
+        subject = "Welcome to HireGenZo!"
+        from_email = settings.DEFAULT_FROM_EMAIL
+        to_email = [recruiter.email]
+
+        # Render the HTML template with context
+        html_content = render_to_string('welcome_recuiters.html', {'name': recruiter.name})
+
+        # Create the email
+        email_message = EmailMultiAlternatives(subject, "", from_email, to_email)
+        email_message.attach_alternative(html_content, "text/html")
+
+        try:
+            # Send the email
+            email_message.send()
+        except Exception as e:
+            print(f"Error sending welcome email: {e}")
+
     def post(self, request, *args, **kwargs):
         serializer = RecruiterOTPLoginSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             recruiter = serializer.validated_data
+
+            # Check if the recruiter is being verified for the first time
+            if not recruiter.is_verified:
+                self.send_welcome_email(recruiter)
+                recruiter.is_verified = True  # Mark the welcome email as sent
+                recruiter.save()
 
             # Generate JWT tokens
             tokens = serializer.get_tokens_for_recruiter(recruiter)
