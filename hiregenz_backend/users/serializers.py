@@ -69,6 +69,17 @@ class OTPVerificationSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid or expired OTP.")
         return recruiter
     
+    @classmethod
+    def get_tokens_for_recruiter(self, recruiter):
+        """
+        Generate JWT tokens for the recruiter.
+        """
+        refresh = RefreshToken.for_user(recruiter)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+    
 class RecruiterOTPLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6)
