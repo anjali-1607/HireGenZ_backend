@@ -8,4 +8,5 @@ urlpatterns = [
     path('api/applications/', include('applications.urls')),  # Include applications app URLs
     path('api/tests/', include('tests.urls')),  # Include tests app URLs
     path('api/matching/', include('matching.urls')),  # Include matching app URLs
+    path('api/analyze/', include('checker.urls')),
 ]
