@@ -16,6 +16,8 @@ from decouple import config
 
 # Load the API key
 OPENAI_API_KEY = config("OPENAI_API_KEY")
+GOOGLE_API_KEY = config('GOOGLE_API_KEY')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
