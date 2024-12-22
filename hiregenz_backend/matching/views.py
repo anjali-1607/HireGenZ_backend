@@ -23,6 +23,7 @@ class MatchCandidatesView(APIView):
     """
     API View to match candidates to a specific job and return ranked results with pagination.
     """
+
     def get(self, request, job_id, *args, **kwargs):
         # Check if the user is a recruiter
         if not IsRecruiter().has_permission(request, self):
@@ -35,8 +36,10 @@ class MatchCandidatesView(APIView):
             # Fetch the job
             job = get_object_or_404(JobPost, id=job_id)
 
-            # Fetch all candidates
-            candidates = Candidate.objects.all()
+            # Fetch only required fields from candidates using optimized query
+            candidates = Candidate.objects.only(
+                "id", "name", "email", "resume_file", "skills"
+            ).all()
 
             if not candidates.exists():
                 return Response(
@@ -44,20 +47,23 @@ class MatchCandidatesView(APIView):
                     status=HTTP_404_NOT_FOUND
                 )
 
-            # Rank candidates by match score
-            ranked_candidates = [
-                {
+            # Optimize matching by using lazy evaluation and batching
+            ranked_candidates = []
+            for candidate in candidates.iterator():  # Use iterator for batch processing
+                score = match_candidate_to_job(candidate, job)
+                ranked_candidates.append({
                     "candidate_id": candidate.id,
                     "name": candidate.name,
                     "email": candidate.email,
                     "resume_file": self.get_resume_url(candidate.resume_file),
-                    "score": match_candidate_to_job(candidate, job),
-                }
-                for candidate in candidates
-            ]
+                    "score": score,
+                })
 
             # Sort candidates by score in descending order
-            ranked_candidates = sorted(ranked_candidates, key=lambda x: x["score"], reverse=True)
+            ranked_candidates.sort(key=lambda x: x["score"], reverse=True)
+
+            # Calculate total candidates matched
+            total_matched = len(ranked_candidates)
 
             # Apply pagination
             paginator = MatchCandidatesPagination()
@@ -67,6 +73,7 @@ class MatchCandidatesView(APIView):
             return paginator.get_paginated_response({
                 "job_id": job.id,
                 "job_title": job.title,
+                "total_matched": total_matched,  # Include the total count of matched candidates
                 "matches": paginated_data,
             })
 
