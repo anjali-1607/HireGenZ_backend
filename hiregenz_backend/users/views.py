@@ -122,7 +122,7 @@ class ResumeUploadView(APIView):
             user = User.objects.create_user(
                 username=email,  # Use email as the username
                 email=email,
-                password=User.objects.make_random_password(),  # Generate a random password
+                password=''.join(random.choices(string.ascii_letters + string.digits, k=8)),  # Example: 8-character password
                 role='candidate'  # Set the role for the user
             )
 
@@ -142,7 +142,6 @@ class ResumeUploadView(APIView):
                 resume_file=resume_file,
             )
             return candidate, "Candidate created successfully!", True
-
 
     def generate_otp(self):
         """Generate a 6-digit OTP."""
@@ -378,5 +377,4 @@ class RecruiterOTPLoginView(APIView):
                 },
                 status=HTTP_200_OK,
             )
-
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
