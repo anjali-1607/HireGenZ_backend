@@ -167,7 +167,6 @@ class ResumeUploadView(APIView):
             print(f"Error sending OTP email: {e}")
 
 
-
 class VerifyEmailView(APIView):
     """Handles email verification via OTP and updates candidate preferences."""
 
