@@ -13,7 +13,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from .models import Recruiter, Candidate, CandidatePreference
 from .serializers import RecruiterSerializer, OTPVerificationSerializer, RecruiterOTPLoginSerializer
-from .utils import extract_resume_data  # Utility for parsing resumes
+from .utils import extract_resume_data, TokenUtility  # Utility for parsing resumes
 
 
 class ResumeUploadView(APIView):
@@ -101,6 +101,9 @@ class ResumeUploadView(APIView):
 
     def create_or_update_candidate(self, extracted_data, resume_file, resume_text):
         """Create or update a candidate record based on extracted resume data."""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
         email = extracted_data.get("email")
         candidate = Candidate.objects.filter(email=email).first()
 
@@ -115,8 +118,17 @@ class ResumeUploadView(APIView):
             else:  # Candidate exists, already verified (send OTP for preferences update)
                 return candidate, "Candidate details updated successfully!", True
         else:
-            # Create a new candidate
+            # Create a new user
+            user = User.objects.create_user(
+                username=email,  # Use email as the username
+                email=email,
+                password=User.objects.make_random_password(),  # Generate a random password
+                role='candidate'  # Set the role for the user
+            )
+
+            # Create a new candidate linked to the user
             candidate = Candidate.objects.create(
+                user=user,
                 name=extracted_data.get("name"),
                 email=email,
                 phone=extracted_data.get("phone"),
@@ -124,12 +136,13 @@ class ResumeUploadView(APIView):
                 certifications=extracted_data.get("certifications"),
                 education=extracted_data.get("education"),
                 work_experience=extracted_data.get("work_experience"),
-                total_work_experience= extracted_data.get("total_experience"),
+                total_work_experience=extracted_data.get("total_experience"),
                 professional_summary=extracted_data.get("professional_summary"),
                 resume_text=resume_text,
                 resume_file=resume_file,
             )
             return candidate, "Candidate created successfully!", True
+
 
     def generate_otp(self):
         """Generate a 6-digit OTP."""
@@ -153,99 +166,6 @@ class ResumeUploadView(APIView):
         except Exception as e:
             print(f"Error sending OTP email: {e}")
 
-    # """Handles the uploading and parsing of resumes, sending OTP for email verification or preference updates."""
-
-    # def post(self, request):
-    #     try:
-    #         # Validate resume file
-    #         resume_file = self.get_uploaded_file(request)
-    #         resume_text = self.extract_resume_text(resume_file)
-
-    #         # Parse resume data
-    #         extracted_data = extract_resume_data(resume_text)
-    #         email = extracted_data.get("email")
-
-    #         if not email:
-    #             return Response({"error": "No valid email found in the resume."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #         # Create or update candidate
-    #         candidate, message, is_new_or_requires_verification = self.create_or_update_candidate(
-    #             extracted_data, resume_file, resume_text
-    #         )
-
-    #         # Check if OTP is required
-    #         if is_new_or_requires_verification:
-    #             if not candidate.is_verified:
-    #                 # Send OTP for email verification
-    #                 otp = self.generate_otp()
-    #                 candidate.otp = otp
-    #                 candidate.is_verified = False
-    #                 candidate.save()
-    #                 self.send_otp_email(candidate.email, otp, candidate.name)
-
-    #                 return Response(
-    #                     {
-    #                         "message": f"{message} OTP sent to {candidate.email} for verification.",
-    #                         "data": {"email": candidate.email, "is_verified": "false"},
-    #                     },
-    #                     status=status.HTTP_201_CREATED,
-    #                 )
-    #             else:
-    #                 # Send OTP for preference updates
-    #                 otp = self.generate_otp()
-    #                 candidate.otp = otp
-    #                 candidate.save()
-    #                 self.send_otp_email(candidate.email, otp, candidate.name)
-
-    #                 return Response(
-    #                     {
-    #                         "message": "OTP sent for updating preferences.",
-    #                         "data": {"email": candidate.email, "is_verified": "true"},
-    #                     },
-    #                     status=status.HTTP_200_OK,
-    #                 )
-
-    #         # No OTP required (email already verified, no preference update needed)
-    #         return Response(
-    #             {
-    #                 "message": f"{message} Candidate already verified and no further action is needed.",
-    #                 "data": {"email": candidate.email, "is_verified": "true"},
-    #             },
-    #             status=status.HTTP_200_OK,
-    #         )
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # def create_or_update_candidate(self, extracted_data, resume_file, resume_text):
-    #     """Create or update a candidate record based on extracted resume data."""
-    #     email = extracted_data.get("email")
-    #     candidate = Candidate.objects.filter(email=email).first()
-
-    #     if candidate:
-    #         if not candidate.is_verified:  # Candidate exists but is not verified
-    #             for field, value in extracted_data.items():
-    #                 setattr(candidate, field, value)
-    #             candidate.resume_file = resume_file
-    #             candidate.resume_text = resume_text
-    #             candidate.save()
-    #             return candidate, "Candidate details updated successfully!", True
-    #         else:  # Candidate exists, already verified (send OTP for preferences update)
-    #             return candidate, "Candidate details updated successfully!", True
-    #     else:
-    #         # Create a new candidate
-    #         candidate = Candidate.objects.create(
-    #             name=extracted_data.get("name"),
-    #             email=email,
-    #             phone=extracted_data.get("phone"),
-    #             skills=", ".join(extracted_data.get("skills", [])),
-    #             certifications=extracted_data.get("certifications"),
-    #             education=extracted_data.get("education"),
-    #             total_work_experience=extracted_data.get("work_experience"),
-    #             professional_summary=extracted_data.get("professional_summary"),
-    #             resume_text=resume_text,
-    #             resume_file=resume_file,
-    #         )
-    #         return candidate, "Candidate created successfully!", True
 
 
 class VerifyEmailView(APIView):
@@ -363,7 +283,6 @@ class OTPVerificationView(APIView):
     """
     def post(self, request, *args, **kwargs):
         serializer = OTPVerificationSerializer(data=request.data)
-        
         if serializer.is_valid():
             recruiter = serializer.validated_data
             recruiter.is_verified = True
@@ -371,9 +290,9 @@ class OTPVerificationView(APIView):
             recruiter.otp_expiration = None
             recruiter.save()
 
-            # Generate JWT tokens (reuse logic from RecruiterOTPLoginSerializer)
-            tokens = OTPVerificationSerializer.get_tokens_for_recruiter(recruiter=recruiter)
-
+            # Generate JWT tokens using TokenUtility
+            tokens = TokenUtility.get_tokens_for_user(recruiter.user)
+           
             return Response({
                 "message": "Email verified successfully.",
                 "tokens": tokens,
@@ -444,8 +363,8 @@ class RecruiterOTPLoginView(APIView):
                 recruiter.is_verified = True  # Mark the welcome email as sent
                 recruiter.save()
 
-            # Generate JWT tokens
-            tokens = serializer.get_tokens_for_recruiter(recruiter)
+            # Generate JWT tokens using TokenUtility
+            tokens = TokenUtility.get_tokens_for_user(recruiter.user)
 
             # Clear OTP after successful login
             recruiter.otp = None

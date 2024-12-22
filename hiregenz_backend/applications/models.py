@@ -2,6 +2,7 @@ from django.db import models
 from users.models import Candidate
 from jobs.models import JobPost
 
+
 class Application(models.Model):
     candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE)
     job_post = models.ForeignKey(JobPost, on_delete=models.CASCADE)

@@ -1,15 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from .models import JobPost
 from .serializers import JobPostSerializer
-from rest_framework.status import HTTP_404_NOT_FOUND, HTTP_200_OK, HTTP_204_NO_CONTENT
+from helpers.permission import IsRecruiter
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
+
 class JobPostListCreateView(APIView):
-    """
-    API View to list all job posts or create a new job post.
-    """
+    permission_classes = [IsAuthenticated, IsRecruiter]
 
     def get(self, request, *args, **kwargs):
         job_posts = JobPost.objects.all()
@@ -17,7 +17,7 @@ class JobPostListCreateView(APIView):
         return Response(serializer.data, status=HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        serializer = JobPostSerializer(data=request.data)
+        serializer = JobPostSerializer(data=request.data, context={'request': request})  # Pass context
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=HTTP_201_CREATED)
@@ -28,21 +28,25 @@ class JobPostDetailView(APIView):
     """
     API View to retrieve, update, or delete a specific job post.
     """
+    permission_classes = [IsAuthenticated, IsRecruiter]
 
     def get(self, request, pk, *args, **kwargs):
+        # Retrieve a job post
         job_post = get_object_or_404(JobPost, pk=pk)
         serializer = JobPostSerializer(job_post)
         return Response(serializer.data, status=HTTP_200_OK)
 
     def put(self, request, pk, *args, **kwargs):
-        job_post = get_object_or_404(JobPost, pk=pk)
-        serializer = JobPostSerializer(job_post, data=request.data, partial=True)  # Allow partial updates
+        # Update a job post (only recruiters can update their own job posts)
+        job_post = get_object_or_404(JobPost, pk=pk, recruiter=request.user.recruiter_profile)
+        serializer = JobPostSerializer(job_post, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=HTTP_200_OK)
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk, *args, **kwargs):
-        job_post = get_object_or_404(JobPost, pk=pk)
+        # Delete a job post (only recruiters can delete their own job posts)
+        job_post = get_object_or_404(JobPost, pk=pk, recruiter=request.user.recruiter_profile)
         job_post.delete()
         return Response({"message": "Job post deleted successfully"}, status=HTTP_204_NO_CONTENT)

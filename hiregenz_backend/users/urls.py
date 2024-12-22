@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ResumeUploadView, VerifyEmailView, RecruiterRegistrationView, OTPVerificationView, RecruiterOTPLoginView,SendOTPForLoginView
+from .views import ResumeUploadView, VerifyEmailView, RecruiterRegistrationView, OTPVerificationView, RecruiterOTPLoginView, SendOTPForLoginView
 
 urlpatterns = [
     # path('candidate/', CandidateView.as_view()),

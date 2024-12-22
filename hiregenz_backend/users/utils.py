@@ -1,7 +1,7 @@
 import re
 import spacy
 from datetime import datetime
-
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # Preload SpaCy model
 nlp = spacy.load("en_core_web_sm")
@@ -188,3 +188,19 @@ def extract_resume_data(text):
         "professional_summary": extract_section(text, "SUMMARY"),
         "total_experience": calculate_total_experience(extract_section(text, "WORK EXPERIENCE"))
     }
+
+
+class TokenUtility:
+    @staticmethod
+    def get_tokens_for_user(user):
+        """
+        Generate JWT tokens with additional claims for the user.
+        """
+        refresh = RefreshToken.for_user(user)
+        # Add custom claims
+        refresh['role'] = user.role
+        refresh['email'] = user.email
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }

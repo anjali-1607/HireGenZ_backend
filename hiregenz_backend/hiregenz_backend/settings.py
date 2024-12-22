@@ -22,6 +22,7 @@ GOOGLE_API_KEY = config('GOOGLE_API_KEY')
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+AUTH_USER_MODEL = 'users.User'  # Adjust 'users' to the name of the app where the User model is located
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -70,7 +71,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Media Files
 MEDIA_URL = '/media/'  # URL prefix for media files
 MEDIA_ROOT = BASE_DIR / 'media'  # Directory where media files will be stored
-
 
 
 ROOT_URLCONF = 'hiregenz_backend.urls'
