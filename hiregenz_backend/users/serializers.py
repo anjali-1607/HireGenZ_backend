@@ -155,4 +155,3 @@ class CandidateSerializer(serializers.ModelSerializer):
         user.save()
         candidate = Candidate.objects.create(user=user, **validated_data)
         return candidate
-
