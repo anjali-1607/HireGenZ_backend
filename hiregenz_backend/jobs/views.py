@@ -4,7 +4,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_204_NO_CON
 from .models import JobPost
 from .serializers import JobPostSerializer
 from helpers.permission import IsRecruiter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 
 
@@ -28,7 +28,13 @@ class JobPostDetailView(APIView):
     """
     API View to retrieve, update, or delete a specific job post.
     """
-    permission_classes = [IsAuthenticated, IsRecruiter]
+    permission_classes = [IsAuthenticated]  # Default for PUT and DELETE
+
+    def get_permissions(self):
+        # Allow unauthenticated access for GET; enforce authentication for others
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return super().get_permissions()
 
     def get(self, request, pk, *args, **kwargs):
         # Retrieve a job post

@@ -13,7 +13,7 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
-    
+
 
 class Recruiter(models.Model):
     user = models.OneToOneField(
