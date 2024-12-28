@@ -70,10 +70,10 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 # AWS S3 Configuration
-AWS_ACCESS_KEY_ID = 'AKIAYSE4NVVO3F7H3EM6'
-AWS_SECRET_ACCESS_KEY = 'y3ixcE9aSQdcazt8f7aVLmy8/OpKQkUT24myy+ev'
-AWS_STORAGE_BUCKET_NAME = 'hiregenzo'
-AWS_S3_REGION_NAME = 'ap-south-1'  # e.g., 'us-east-1'
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME")
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 
 # Storage settings
@@ -184,7 +184,7 @@ EMAIL_USE_SSL = False  # SSL is not used with TLS
 
 # Email Credentials
 EMAIL_HOST_USER = "noreply.hiregenz@gmail.com"  # Your Gmail address
-EMAIL_HOST_PASSWORD = "gxlmyoizgkxvwanw"  # Your Gmail App Password (NOT your actual Gmail password)
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')  # Your Gmail App Password (NOT your actual Gmail password)
 
 # Default From Email
 DEFAULT_FROM_EMAIL = "HiregenZ <noreply.HireGenz@gmail.com>"
