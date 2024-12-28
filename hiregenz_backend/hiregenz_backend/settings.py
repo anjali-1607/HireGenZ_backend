@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'storages',
     'corsheaders',
     'users',
     'jobs',
@@ -68,11 +69,19 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True
 
 
-# Media Files
-MEDIA_URL = '/media/'  # URL prefix for media files
-MEDIA_ROOT = BASE_DIR / 'media'  # Directory where media files will be stored
+# AWS S3 Configuration
+AWS_ACCESS_KEY_ID = 'AKIAYSE4NVVO3F7H3EM6'
+AWS_SECRET_ACCESS_KEY = 'y3ixcE9aSQdcazt8f7aVLmy8/OpKQkUT24myy+ev'
+AWS_STORAGE_BUCKET_NAME = 'hiregenzo'
+AWS_S3_REGION_NAME = 'ap-south-1'  # e.g., 'us-east-1'
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 
+# Storage settings
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+# Optional: S3 Bucket URL for static files
+AWS_LOCATION = 'media'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 ROOT_URLCONF = 'hiregenz_backend.urls'
 
 TEMPLATES = [
@@ -138,7 +147,6 @@ SIMPLE_JWT = {
     'SIGNING_KEY': 'your-secret-key',  # Replace with your secure key
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
-
 
 
 # Internationalization

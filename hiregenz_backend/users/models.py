@@ -55,7 +55,7 @@ class Candidate(models.Model):
     work_experience = models.TextField(null=True, blank=True)
     total_work_experience = models.FloatField(null=True, blank=True, help_text="Total work experience in years, stored as a floating-point value.")
     professional_summary = models.TextField(null=True, blank=True)
-    resume_file = models.FileField(upload_to="resumes/", null=True, blank=True)
+    resume_file = models.CharField(max_length=512, null=True, blank=True)  # URL of the resume stored in S3
     otp = models.CharField(max_length=6, null=True, blank=True)  # OTP for verification
     is_verified = models.BooleanField(default=False)  # Verification status
 
@@ -75,7 +75,7 @@ class CandidatePreference(models.Model):
     JOB_TYPE_CHOICES = [
         ('REMOTE', 'Remote'),
         ('HYBRID', 'Hybrid'),
-        ('WFO', 'WFO'),       
+        ('WFO', 'WFO'),         
     ]
 
     candidate = models.OneToOneField(Candidate, on_delete=models.CASCADE, related_name='preference')
