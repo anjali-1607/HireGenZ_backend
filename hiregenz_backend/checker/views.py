@@ -4,6 +4,11 @@ from rest_framework.parsers import MultiPartParser
 from .utils.parser import parse_resume
 from .utils.analyzer import analyze_resume, score_resume
 from .utils.genai import generate_feedback
+from .models import ContactInfo
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class ResumeAnalysisView(APIView):
@@ -22,6 +27,8 @@ class ResumeAnalysisView(APIView):
             analysis = analyze_resume(content)
             contact_info = analysis.get("contact_info", {})
             emails = contact_info.get("emails", [])
+            phones = contact_info.get("phones", [])
+
             if not emails:
                 # If no email is found, do not generate feedback
                 return Response({
@@ -30,6 +37,18 @@ class ResumeAnalysisView(APIView):
                     "scores": None,
                     "feedback": None,
                 }, status=400)
+
+            # Save contact information if both email and phone are present
+            if emails and phones:
+                try:
+                    ContactInfo.objects.create(
+                        email=emails[0],
+                        phone=phones[0],
+                        social_links=contact_info.get("social_links", [])
+                    )
+                except Exception as e:
+                    # Log the exception and continue
+                    logger.warning(f"Failed to save contact info: {e}")
 
             # Generate feedback only if email exists
             scores = score_resume(content)
