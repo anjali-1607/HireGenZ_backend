@@ -8,6 +8,7 @@ nlp = spacy.load("en_core_web_sm")
 # List of stopwords from spaCy
 stop_words = nlp.Defaults.stop_words
 
+
 def analyze_resume(content):
     """
     Analyze the resume for key sections and completeness.
@@ -24,7 +25,6 @@ def analyze_resume(content):
         "languages": extract_section(content, "Languages"),
         "projects": extract_section(content, "Projects")
     }
-    
     # Ensure all sections return meaningful data (even if empty)
     for section in sections:
         if not sections[section]:  # If the section is empty
@@ -58,7 +58,7 @@ def extract_contact_info(content):
         r"(https?://)?"          # Optional http/https prefix
         r"(www\.)?"             # Optional 'www.'
         r"([a-zA-Z0-9_-]+)"      # Domain name (e.g., linkedin, github)
-        r"\.(com|org|net|edu|io)" # Top-level domain
+        r"\.(com|org|net|edu|io)"  # Top-level domain
     )
 
     # Extract emails, phone numbers, and social links
@@ -68,11 +68,11 @@ def extract_contact_info(content):
 
     # If no content is found, return placeholders
     if not emails:
-        emails = ["No content found"]
+        emails = None
     if not phones:
-        phones = ["No content found"]
+        phones = None
     if not social_links:
-        social_links = ["No content found"]
+        social_links = None
 
     return {
         "emails": emails,
@@ -87,8 +87,7 @@ def extract_section(content, section_name):
     If no content is found, return an empty string.
     """
     section_pattern = r"(?<=\b" + re.escape(section_name) + r"\b)(.*?)(?=\n[A-Z])"
-    matches = re.findall(section_pattern, content, re.DOTALL | re.IGNORECASE)
-    
+    matches = re.findall(section_pattern, content, re.DOTALL | re.IGNORECASE) 
     # If no content is found, return an empty string
     return matches[0] if matches else ""
 

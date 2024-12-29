@@ -46,12 +46,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'storages',
     'corsheaders',
     'users',
     'jobs',
     'applications',
     'tests',
     'matching',
+    'checker',
 ]
 
 MIDDLEWARE = [
@@ -68,11 +70,19 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True
 
 
-# Media Files
-MEDIA_URL = '/media/'  # URL prefix for media files
-MEDIA_ROOT = BASE_DIR / 'media'  # Directory where media files will be stored
+# AWS S3 Configuration
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME")
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 
+# Storage settings
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+# Optional: S3 Bucket URL for static files
+AWS_LOCATION = 'media'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 ROOT_URLCONF = 'hiregenz_backend.urls'
 
 TEMPLATES = [
@@ -140,7 +150,6 @@ SIMPLE_JWT = {
 }
 
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -176,7 +185,7 @@ EMAIL_USE_SSL = False  # SSL is not used with TLS
 
 # Email Credentials
 EMAIL_HOST_USER = "noreply.hiregenz@gmail.com"  # Your Gmail address
-EMAIL_HOST_PASSWORD = "gxlmyoizgkxvwanw"  # Your Gmail App Password (NOT your actual Gmail password)
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')  # Your Gmail App Password (NOT your actual Gmail password)
 
 # Default From Email
 DEFAULT_FROM_EMAIL = "HiregenZ <noreply.HireGenz@gmail.com>"

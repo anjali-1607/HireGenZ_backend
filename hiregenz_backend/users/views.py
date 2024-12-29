@@ -1,6 +1,7 @@
 import os
 import random
 import string
+import boto3
 from tempfile import NamedTemporaryFile
 from pdfminer.high_level import extract_text
 from rest_framework.views import APIView
@@ -98,6 +99,24 @@ class ResumeUploadView(APIView):
             temp_file.close()
             os.unlink(temp_file.name)
         return resume_text
+    
+    def upload_to_s3(self, file_obj, filename):
+        """Upload the resume file to AWS S3 and return the public URL."""
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME
+        )
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+        s3_path = f"resumes/{filename}"
+
+        # Upload the file to the specified S3 path
+        s3.upload_fileobj(file_obj, bucket_name, s3_path)
+
+        # Construct the URL for the uploaded file
+        url = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{s3_path}"
+        return url
 
     def create_or_update_candidate(self, extracted_data, resume_file, resume_text):
         """Create or update a candidate record based on extracted resume data."""
@@ -107,11 +126,17 @@ class ResumeUploadView(APIView):
         email = extracted_data.get("email")
         candidate = Candidate.objects.filter(email=email).first()
 
+        # Generate a unique filename for the resume
+        filename = f"{email.replace('@', '_').replace('.', '_')}_resume.pdf"
+
+        # Upload resume to S3
+        resume_url = self.upload_to_s3(resume_file, filename)
+
         if candidate:
             if not candidate.is_verified:  # Candidate exists but is not verified
                 for field, value in extracted_data.items():
                     setattr(candidate, field, value)
-                candidate.resume_file = resume_file
+                candidate.resume_file = resume_url
                 candidate.resume_text = resume_text
                 candidate.save()
                 return candidate, "Candidate details updated successfully!", True
@@ -139,7 +164,7 @@ class ResumeUploadView(APIView):
                 total_work_experience=extracted_data.get("total_experience"),
                 professional_summary=extracted_data.get("professional_summary"),
                 resume_text=resume_text,
-                resume_file=resume_file,
+                resume_file=resume_url,
             )
             return candidate, "Candidate created successfully!", True
 
