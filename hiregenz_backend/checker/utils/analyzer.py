@@ -68,11 +68,11 @@ def extract_contact_info(content):
 
     # If no content is found, return placeholders
     if not emails:
-        emails = ["No content found"]
+        emails = None
     if not phones:
-        phones = ["No content found"]
+        phones = None
     if not social_links:
-        social_links = ["No content found"]
+        social_links = None
 
     return {
         "emails": emails,

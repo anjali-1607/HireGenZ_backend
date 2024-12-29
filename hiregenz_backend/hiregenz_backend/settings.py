@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'applications',
     'tests',
     'matching',
+    'checker',
 ]
 
 MIDDLEWARE = [

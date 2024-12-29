@@ -1,5 +1,6 @@
 import google.generativeai as genai
 from django.conf import settings
+import json
 
 # Configure the Google Generative AI API key
 genai.configure(api_key=settings.GOOGLE_API_KEY)
@@ -7,23 +8,48 @@ genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 def generate_feedback(content):
     """
-    Use Google Generative AI to generate resume improvement suggestions.
+    Use Google Generative AI to generate resume improvement suggestions in JSON format.
     """
     prompt = f"""
-    Analyze the resume content provided below and give clear, actionable feedback. Your analysis should include:
+    Analyze the resume content provided below and give feedback in the following JSON format:
 
-1. Suggestions to improve readability and formatting.  
-2. Identification of missing keywords relevant to job applications.  
-3. Tips for using better action-oriented language in bullet points.  
-4. Feedback presented in 5 clear points, using simple and easy-to-understand language.  
-5. A percentage estimate of the resume’s likelihood of being shortlisted by companies.  
-6. An "Overall Result" score between 0-10 based on the quality of the resume.
-Resume Content:  
-{content}
+    {{
+      "short_summary": "",  // A brief summary of the resume's overall impression.
+      "action_points": [
+        "", "", "", "", ""  // Five actionable suggestions for improving the resume.
+      ],
+      "overall_quality": "", // The quality of the resume (poor, average, excellent, or outstanding).
+      "chance_get_selected": "" // The likelihood of the resume being shortlisted, ranked out of 100.
+    }}
 
+    Ensure the feedback is clear, concise, and actionable, while adhering to this exact format.
+
+    Resume Content:  
+    {content}
     """
 
+    # Initialize the generative model
     model = genai.GenerativeModel("gemini-1.5-pro")
+    
+    # Generate the response
     response = model.generate_content(prompt)
 
-    return response.text  # Return the generated text feedback
+    try:
+        # Remove code block markers and clean up the response
+        cleaned_response = (
+            response.text.replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
+        
+        # Parse the cleaned response into JSON
+        feedback_json = json.loads(cleaned_response)
+    except json.JSONDecodeError as e:
+        # Handle invalid JSON format and return detailed error info
+        feedback_json = {
+            "error": "Invalid JSON format in the response",
+            "raw_response": response.text,
+            "exception": str(e)
+        }
+    
+    return feedback_json

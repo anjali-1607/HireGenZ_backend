@@ -20,12 +20,23 @@ class ResumeAnalysisView(APIView):
 
             # Analyze and score
             analysis = analyze_resume(content)
-            scores = score_resume(content)
+            contact_info = analysis.get("contact_info", {})
+            emails = contact_info.get("emails", [])
+            if not emails:
+                # If no email is found, do not generate feedback
+                return Response({
+                    "message": "Resume Quality is Poor. Email information is required for analysis.",
+                    "analysis": analysis,
+                    "scores": None,
+                    "feedback": None,
+                }, status=400)
 
-            # Generate feedback using GenAI
+            # Generate feedback only if email exists
+            scores = score_resume(content)
             feedback = generate_feedback(content)
 
             return Response({
+                "message": "Resume analyzed successfully.",
                 "analysis": analysis,
                 "scores": scores,
                 "feedback": feedback,
