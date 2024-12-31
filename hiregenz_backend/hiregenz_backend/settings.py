@@ -151,8 +151,16 @@ SIMPLE_JWT = {
 
 ALLOWED_HOSTS = ['api.hiregenzo.com', 'localhost', '127.0.0.1', 'hiregenzo.com']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://api.hiregenzo.com',
+    'https://www.hiregenzo.com',  # Add any other domains if necessary
+]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    'https://api.hiregenzo.com',
+    'https://www.hiregenzo.com',
+]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
