@@ -149,6 +149,10 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+ALLOWED_HOSTS = ['api.hiregenzo.com', 'localhost', '127.0.0.1', 'hiregenzo.com']
+
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
