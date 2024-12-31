@@ -184,8 +184,8 @@ EMAIL_USE_TLS = True  # Use TLS (Transport Layer Security)
 EMAIL_USE_SSL = False  # SSL is not used with TLS
 
 # Email Credentials
-EMAIL_HOST_USER = "noreply.hiregenz@gmail.com"  # Your Gmail address
+EMAIL_HOST_USER = "noreply@hiregenzo.com"  # Your Gmail address
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')  # Your Gmail App Password (NOT your actual Gmail password)
 
 # Default From Email
-DEFAULT_FROM_EMAIL = "HiregenZ <noreply.HireGenz@gmail.com>"
+DEFAULT_FROM_EMAIL = "HiregenZo <noreply@hiregenzo.com>"
