@@ -90,18 +90,25 @@ def extract_email(text):
     match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
     return match.group(0) if match else None
 
+
 def extract_phone(text):
     """Extract phone number from text using regex."""
     match = re.search(r'\+?\d{1,3}[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{4,10}', text)
     return match.group(0) if match else None
 
+
 def extract_name(text):
     """Extract name from the first few lines using heuristics."""
-    lines = text.splitlines()[:5]
-    for line in lines:
-        if re.match(r'^[A-Z][a-z]+\s[A-Z][a-z]+$', line.strip()):  # Matches "First Last"
-            return line.strip()
-    return None
+    try:
+        lines = text.splitlines()[:5]
+        for line in lines:
+            if re.match(r'^[A-Z][a-z]+\s[A-Z][a-z]+$', line.strip()):  # Matches "First Last"
+                return line.strip()
+        return None
+    except Exception as e:
+        print(f"Error extracting name: {str(e)}")
+        return None
+
 
 def extract_skills(text):
     """Extract skills using predefined keywords."""
@@ -109,85 +116,102 @@ def extract_skills(text):
     skills = {token.text for token in doc if token.text in SKILL_KEYWORDS}
     return list(skills)
 
+
 def extract_section(text, heading):
     """Extract specific sections like certifications or summary."""
-    pattern = rf"{heading}.*?(?=\n[A-Z\s]+:|\Z)"
-    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-    return match.group(0).strip() if match else None
-
-
+    try:
+        pattern = rf"{heading}.*?(?=\n[A-Z\s]+:|\Z)"
+        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+        return match.group(0).strip() if match else None
+    except Exception as e:
+        print(f"Error extracting section '{heading}': {str(e)}")
+        return None
 
 
 def calculate_total_experience(work_experience_text):
     """
     Calculate the total work experience in years (floating-point format) from the work experience section.
     """
-    # Match a wide range of date patterns
-    date_patterns = [
-        r"(?:(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4})",  # e.g., "Jan 2020"
-        r"(?:(January|February|March|April|May|June|July|August|September|October|November|December)\s*\d{4})",  # Full month name
-        r"(\d{4}[-/.]\d{1,2})",  # e.g., "2020-01", "2020.01", "2020/01"
-        r"(\d{1,2}[-/.]\d{4})",  # e.g., "01/2020", "1-2020"
-        r"(\d{4})"  # e.g., "2020"
-    ]
+    if not work_experience_text or work_experience_text.strip() == "Not Found":
+        return "0.0"
 
-    # Combine all patterns
-    combined_pattern = "|".join(date_patterns)
-    matches = re.findall(combined_pattern, work_experience_text)
+    try:
+        # Match a wide range of date patterns
+        date_patterns = [
+            r"(?:(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4})",  # e.g., "Jan 2020"
+            r"(?:(January|February|March|April|May|June|July|August|September|October|November|December)\s*\d{4})",
+            r"(\d{4}[-/.]\d{1,2})",
+            r"(\d{1,2}[-/.]\d{4})",
+            r"(\d{4})"
+        ]
 
-    # Normalize extracted dates
-    dates = []
-    for match_group in matches:
-        match = next(filter(None, match_group))  # Get the first non-empty match
-        try:
-            if re.match(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)", match):
-                date_obj = datetime.strptime(match, "%b %Y")
-            elif re.match(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)", match):
-                date_obj = datetime.strptime(match, "%B %Y")
-            elif re.match(r"\d{4}[-/.]\d{1,2}", match):
-                date_obj = datetime.strptime(match, "%Y-%m")
-            elif re.match(r"\d{1,2}[-/.]\d{4}", match):
-                date_obj = datetime.strptime(match, "%m/%Y")
-            elif re.match(r"\d{4}", match):
-                date_obj = datetime.strptime(match, "%Y")  # Assume January if only year is provided
-            else:
+        combined_pattern = "|".join(date_patterns)
+        matches = re.findall(combined_pattern, work_experience_text)
+
+        dates = []
+        for match_group in matches:
+            match = next(filter(None, match_group))  # Get the first non-empty match
+            try:
+                if re.match(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)", match):
+                    date_obj = datetime.strptime(match, "%b %Y")
+                elif re.match(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)", match):
+                    date_obj = datetime.strptime(match, "%B %Y")
+                elif re.match(r"\d{4}[-/.]\d{1,2}", match):
+                    date_obj = datetime.strptime(match, "%Y-%m")
+                elif re.match(r"\d{1,2}[-/.]\d{4}", match):
+                    date_obj = datetime.strptime(match, "%m/%Y")
+                elif re.match(r"\d{4}", match):
+                    date_obj = datetime.strptime(match, "%Y")
+                else:
+                    continue
+                dates.append(date_obj)
+            except ValueError:
                 continue
-            dates.append(date_obj)
-        except ValueError:
-            continue  # Skip invalid date formats
 
-    # Add "Present" or "Now" as the current date
-    if re.search(r"(?i)\b(Present|Now)\b", work_experience_text):
-        dates.append(datetime.now())
+        if re.search(r"(?i)\b(Present|Now)\b", work_experience_text):
+            dates.append(datetime.now())
 
-    # Sort dates in ascending order
-    dates = sorted(dates)
+        dates = sorted(dates)
+        total_months = 0
+        for i in range(0, len(dates) - 1, 2):
+            start_date = dates[i]
+            end_date = dates[i + 1] if i + 1 < len(dates) else datetime.now()
+            total_months += (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
 
-    # Calculate total experience in months
-    total_months = 0
-    for i in range(0, len(dates) - 1, 2):
-        start_date = dates[i]
-        end_date = dates[i + 1] if i + 1 < len(dates) else datetime.now()
-        total_months += (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-
-    # Convert total months to a floating-point value
-    total_years = total_months / 12
-    return f"{total_years:.1f}"
+        return f"{total_months / 12:.1f}"
+    except Exception as e:
+        print(f"Error calculating total experience: {str(e)}")
+        return "0.0"
 
 
 def extract_resume_data(text):
-    """Extract structured data from resume text."""
-    return {
-        "name": extract_name(text),
-        "email": extract_email(text),
-        "phone": extract_phone(text),
-        "skills": extract_skills(text),
-        "certifications": extract_section(text, "CERTIFICATIONS"),
-        "education": extract_section(text, "EDUCATION"),
-        "work_experience": extract_section(text, "WORK EXPERIENCE"),
-        "professional_summary": extract_section(text, "SUMMARY"),
-        "total_experience": calculate_total_experience(extract_section(text, "WORK EXPERIENCE"))
-    }
+    """Extract structured data from resume text with robust error handling."""
+    try:
+        name = extract_name(text) or "Unknown"
+        email = extract_email(text) or "Not Found"
+        phone = extract_phone(text) or "Not Found"
+        skills = extract_skills(text) or []
+        certifications = extract_section(text, "CERTIFICATIONS") or "Not Found"
+        education = extract_section(text, "EDUCATION") or "Not Found"
+        work_experience = extract_section(text, "WORK EXPERIENCE") or "Not Found"
+        summary = extract_section(text, "SUMMARY") or "Not Found"
+        total_experience = (
+            calculate_total_experience(work_experience) if work_experience != "Not Found" else "0.0"
+        )
+
+        return {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "skills": skills,
+            "certifications": certifications,
+            "education": education,
+            "work_experience": work_experience,
+            "professional_summary": summary,
+            "total_experience": total_experience,
+        }
+    except Exception as e:
+        raise ValueError(f"Error in extract_resume_data: {str(e)}")
 
 
 class TokenUtility:

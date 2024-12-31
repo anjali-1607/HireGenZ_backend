@@ -1,8 +1,7 @@
-import os
 import random
 import string
 import boto3
-from tempfile import NamedTemporaryFile
+from io import BytesIO
 from pdfminer.high_level import extract_text
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -25,11 +24,11 @@ class ResumeUploadView(APIView):
             # Validate and retrieve the resume file
             resume_file = self.get_uploaded_file(request)
             resume_text = self.extract_resume_text(resume_file)
-
+            # print(resume_text)
             # Parse resume data
             extracted_data = extract_resume_data(resume_text)
+            print("Extractted Data", extracted_data)
             email = extracted_data.get("email")
-
             if not email:
                 return Response({"error": "No valid email found in the resume."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -87,19 +86,22 @@ class ResumeUploadView(APIView):
         if not resume_file:
             raise ValueError("No resume file provided.")
         return resume_file
-
-    def extract_resume_text(self, resume_file):
-        """Extract text from the uploaded resume file."""
-        temp_file = NamedTemporaryFile(delete=False)
-        try:
-            temp_file.write(resume_file.read())
-            temp_file.flush()
-            resume_text = extract_text(temp_file.name)
-        finally:
-            temp_file.close()
-            os.unlink(temp_file.name)
-        return resume_text
     
+    def extract_resume_text(self, file):
+        """
+        Extract text content from a PDF resume file.
+        """
+        try:
+            # Convert the InMemoryUploadedFile to a file-like object (BytesIO)
+            file_content = BytesIO(file.read())
+            
+            # Extract text from the PDF content
+            content = extract_text(file_content)
+            
+            return content
+        except Exception as e:
+            raise ValueError(f"Error extracting text from resume: {str(e)}")
+
     def upload_to_s3(self, file_obj, filename):
         """Upload the resume file to AWS S3 and return the public URL."""
         s3 = boto3.client(
